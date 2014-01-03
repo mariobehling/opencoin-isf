@@ -1,0 +1,184 @@
+package com.twitter.finagle.opencoin.demo
+
+import java.net.InetSocketAddress
+import com.twitter.finagle.Codec
+import com.twitter.finagle.CodecFactory
+import com.twitter.finagle.Service
+import com.twitter.finagle.builder.ClientBuilder
+import com.twitter.finagle.builder.Server
+import com.twitter.finagle.builder.ServerBuilder
+import com.twitter.util.Future
+import org.jboss.netty.channel.ChannelPipelineFactory
+import org.jboss.netty.channel.Channels
+import org.jboss.netty.handler.codec.frame.DelimiterBasedFrameDecoder
+import org.jboss.netty.handler.codec.frame.Delimiters
+import org.jboss.netty.handler.codec.string.StringDecoder
+import org.jboss.netty.handler.codec.string.StringEncoder
+import org.jboss.netty.util.CharsetUtil
+import java.net.NetworkInterface
+import scala.collection.JavaConversions._
+import java.lang.Exception
+
+import org.squeryl.PrimitiveTypeMode._
+import org.squeryl.Schema
+import org.squeryl.SessionFactory
+import org.squeryl.Session
+import org.squeryl.adapters.MySQLAdapter
+
+
+object isNumber {
+	def isNumeric(input: String): Boolean = input.forall(_.isDigit)
+}
+
+class Coin(var Type: String, var Value: Int) {
+	  def this() = this("",0)       
+}
+
+object Open_Coin extends Schema {
+	val coins=table[Coin]
+}
+
+
+object Server {
+  def main(args: Array[String]) {
+    var i=0
+    var j=0
+    var ip = new Array[String](10)
+	  NetworkInterface.getNetworkInterfaces.foreach{it =>it.getInetAddresses.foreach{inet=>inet.getAddress()
+	  	if(i%2!=0)
+	  	{
+	  		ip(j) = inet.toString().substring(1,inet.toString().length())
+	  		j=j+1
+	  	}
+	  	i = i + 1
+      }
+    }
+    var ip_address = ip(0)
+    println("Server IP address: " + ip(0))
+    val databaseUsername = "root"
+    val databasePassword = "root"
+    val databaseConnection = "jdbc:mysql://localhost:3306/Open_Coin"
+    Class.forName("com.mysql.jdbc.Driver")
+    SessionFactory.concreteFactory = Some(() => Session.create(
+		java.sql.DriverManager.getConnection(databaseConnection, databaseUsername, databasePassword),
+		new MySQLAdapter)
+	      )
+    val service = new Service[String, String] {
+      def apply(request: String) = {
+    	  var str = request
+	  println("Client sent: " + request)
+    	  //var p = new JsonParser()
+    	  
+    	  var result:Array[String] = new Array[String](4)
+        
+          val tweetRegex = "\"ip\":\"(.*)\",\"typ\":\"(.*)\",\"value\":(.*),\"trans\":(.*)".r
+          tweetRegex.findFirstMatchIn(str) match{
+        	  case Some(m) => {
+	        	  result(0) = str.substring(m.start(1),m.end(1))
+	        	  result(1) = str.substring(m.start(2),m.end(2))
+	        	  result(2) = str.substring(m.start(3),m.end(3))
+	        	  result(3) = str.substring(m.start(4),m.end(4))
+        	  }
+        	  case _ => None
+          }
+		 var account = 0
+		 var TType = ""
+		 transaction {
+			val company = from(Open_Coin.coins)(c => where(c.Type === result(1)) select (c))
+			for(c <- company)
+			{
+				account =  c.Value
+				TType = c.Type
+			}
+		 }
+		 var error = ""
+		 var say = ""
+		 var flag = false
+		 var number = ""
+		 if(TType != "")
+		 {
+			 println("Your account: " + account)
+			 var t = if(result(3)=="1") "send" else "receive"
+			 println("Client's transfer: " + t)
+			 println("Value: " + result(2))
+			 print("What do you say with client? ")
+			 say = readLine
+			 while(!flag)
+			 {
+				 print("Input number: ")
+				 number = readLine
+				 if(isNumber.isNumeric(number))
+					 flag = true
+				 else
+				     flag = false
+			 }
+			 println("Client want to " + t + " " + result(2))
+			 if(result(3)=="1")
+			 {
+				 account = account - result(2).toInt
+				 transaction {
+						update(Open_Coin.coins)(c => where (c.Type === result(1))
+						set (c.Value := account))
+					   }
+				 var str_json = """"say":"""" + say + """","number":""" + number + ""","account":""" + account + ""","error":"""" + error + "\""
+				 Future.value(str_json)
+			 }else
+			 {
+				 account = account + result(2).toInt
+				 transaction {
+						update(Open_Coin.coins)(c => where (c.Type === result(1))
+						set (c.Value := account))
+				 }
+				 var str_json = """"say":"""" + say + """","number":""" + number + ""","account":""" + account + ""","error":"""" + error + "\""
+				 Future.value(str_json)
+			 }
+		 }else
+		 {
+			 error = result(1) + "is not found!"
+			 var str_json = """"say":"""" + say + """","number":""" + number + ""","account":""" + account + ""","error":"""" + error + "\""
+			 Future.value(str_json)
+		 }
+	  }
+    }
+
+    // Bind the service to port 8080
+    val server: Server = ServerBuilder()
+      .codec(StringCodec)
+      .bindTo(new InetSocketAddress(ip_address,1000))
+      .name("echoserver")
+      .build(service)
+  }
+}
+
+
+object StringCodec extends StringCodec
+
+class StringCodec extends CodecFactory[String, String] {
+  def server = Function.const {
+    new Codec[String, String] {
+      def pipelineFactory = new ChannelPipelineFactory {
+        def getPipeline = {
+          val pipeline = Channels.pipeline()
+          pipeline.addLast("line",
+            new DelimiterBasedFrameDecoder(100, Delimiters.lineDelimiter: _*))
+          pipeline.addLast("stringDecoder", new StringDecoder(CharsetUtil.UTF_8))
+          pipeline.addLast("stringEncoder", new StringEncoder(CharsetUtil.UTF_8))
+          pipeline
+        }
+      }
+    }
+  }
+
+  def client = Function.const {
+    new Codec[String, String] {
+      def pipelineFactory = new ChannelPipelineFactory {
+        def getPipeline = {
+          val pipeline = Channels.pipeline()
+          pipeline.addLast("stringEncode", new StringEncoder(CharsetUtil.UTF_8))
+          pipeline.addLast("stringDecode", new StringDecoder(CharsetUtil.UTF_8))
+          pipeline
+        }
+      }
+    }
+  }
+}

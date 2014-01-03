@@ -1,0 +1,11 @@
+update
+eclipse create-src
+run
+reload
+update
+reload
+update
+run
+reload
+update
+test

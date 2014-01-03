@@ -1,0 +1,9 @@
+[0m[[0minfo[0m] [0m[32mStackSpec:[0m[0m
+[0m[[0minfo[0m] [0m[32mResponse function with GET method [0m[0m
+[0m[[0minfo[0m] [0m[32m- must return a coin which match type is inputed[0m[0m
+[0m[[0minfo[0m] [0m[32m- should return coin's type is not found[0m[0m
+[0m[[0minfo[0m] [0m[32mResponse function with POST method [0m[0m
+[0m[[0minfo[0m] [0m[32m- must sum coin's value[0m[0m
+[0m[[0minfo[0m] [0m[32m- should coin's type is not found[0m[0m
+[0m[[0minfo[0m] [0m[32mResponse function with other method [0m[0m
+[0m[[0minfo[0m] [0m[32m- must return message this method doesn't support[0m[0m

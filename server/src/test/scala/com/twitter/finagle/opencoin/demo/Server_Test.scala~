@@ -1,0 +1,12 @@
+import org.scalatest.FlatSpec
+import scala.collection.mutable.Stack
+
+
+class StackSpec extends FlatSpec {
+
+  "A Sum" should "equal value" in {
+	var a = 6
+	var b = 6
+    	 assert(a === b)
+    }
+}

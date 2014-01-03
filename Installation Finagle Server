@@ -1,0 +1,180 @@
+OpenCoin Project Documentation
+Research how to run Twitter's Finagle server
+
+Reference:
+- http://www.fisharefriends.us
+- http://scala-ide.org
+
+I. Introduces
+To run Twitter’s Finagle server, we have to do the following steps:
+1. Install Scala IDE for scala 2.8 (using Eclipse plugins)
+2. Creating a SBT project.
+3. Enable the sbteclipse plugin.
+4. Implement and run Echo example from Twitter.
+II. Implementation
+1. Install Scala IDE for scala 2.8 (using Eclipse plugins)
+Requirements
+- JDK 5 or JDK6 (JDK 7 can be used with some caveats).
+- Eclipse, including the JDT. “Eclipse Classic” is sufficient, but any Eclipse package can be used.
+- Both Eclipse 3.6 (Helios) and Eclipse 3.7 (Indigo) are supported.
+In Eclipse, open menu Help -> Install New Software. Click Add button and then copy link http://download.scala-ide.org/releases-28/stable/site and paste into Location field. Look at the follow picture.
+
+Click Ok, waiting for pending and select Scala IDE for Eclipse, install it. After finished you need restart Eclipse.
+2. Creating a SBT project.
+Start by creating a SBT project at hello-finagle; this is just an empty folder for now.
+Download sbt-launch.jar v0.11.0-RC1 from http://repo.typesafe.com/typesafe/ivy-snapshots/org.scala-tools.sbt/sbt-launch/0.11.0-RC1/sbt-launch.jar and save it to hello-finagle/sbt-launch.jar.
+Then create a command line script for SBT at hello-finagle/sbt, for example:
+
+#!/bin/bash
+# My default vmargs for Scala development
+SCALA="-Xverify:none -XX:MaxPermSize=1024m -Xms1G -Xmx1G -Xss2M -XX:+UseTLAB \
+-XX:+AggressiveOpts -XX:+UseFastAccessorMethods"
+# High throughput, but could have long GC pauses
+GC_STRATEGY="-XX:+UseParallelGC -XX:+UseParallelOldGC"
+java $SCALA $GC_STRATEGY -jar `dirname $0`/sbt-launch.jar "$@"
+3. Enable the sbteclipse plugin.
+Enable the sbteclipse plugin by creating a file named hello-finagle/project/plugins/build.sbt.
+
+resolvers += Classpaths.typesafeResolver
+addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse" % "1.4.0")
+Continue, create file named hello-finagle/project/MainBuild.scala
+
+package org.twitter.finagle
+import sbt._
+import Keys._
+/**
+* @author TuanLe
+*
+*/
+object MainBuild extends Build {
+ val project = Project(id="finagle", base=file(".")) settings (
+   name := "Scala Example",
+   version := "1.0.1",
+   organization  := "org.twitter.finagle",
+   scalaVersion  := "2.8.1", // MongoDB repository only supports Scala 2.8.1
+       resolvers ++= Seq(
+       "twitter.com" at "http://maven.twttr.com/",
+       "repo.codahale.com" at "http://repo.codahale.com"
+   ),
+   libraryDependencies ++= Seq(
+    // Finagle
+       "com.twitter" % "finagle-core" % "1.9.4",
+       "com.twitter" % "finagle-http" % "1.9.4",
+               // JSON
+       "org.codehaus.jackson" % "jackson-core-asl"  % "1.8.1",
+       "org.codehaus.jackson" % "jackson-mapper-asl" % "1.8.1",
+       "com.codahale" % "jerkson_2.8.1" % "0.1.4",
+               // MongoDB
+       "com.mongodb.casbah" % "casbah_2.8.1" % "2.1.5.0",
+               // Logging
+       "org.slf4j" % "slf4j-simple" % "1.6.3",
+       "ch.qos.logback" % "logback-core" % "0.9.30",
+               // Testing
+       "org.apache.httpcomponents" % "httpclient" % "4.1.2",
+       "org.scalatest" % "scalatest_2.8.1" % "1.5.1" % "test"
+   )
+ )
+}
+Now run ./sbt, followed by the eclipse create-src. SBT will set up your Eclipse project and download your dependencies (e.g., Finagle v1.9.0) for you.
+4. Implement and run Echo example from Twitter.
+To validate the project setup, we will run the Echo example from Twitter. I’ve combined EchoServer, EchoClient, and StringCodec into one EchoExample.scala file:
+
+package com.twitter.finagle.example.echo
+import java.net.InetSocketAddress
+import com.twitter.finagle.Codec
+import com.twitter.finagle.CodecFactory
+import com.twitter.finagle.Service
+import com.twitter.finagle.builder.ClientBuilder
+import com.twitter.finagle.builder.Server
+import com.twitter.finagle.builder.ServerBuilder
+import com.twitter.util.Future
+import org.jboss.netty.channel.ChannelPipelineFactory
+import org.jboss.netty.channel.Channels
+import org.jboss.netty.handler.codec.frame.DelimiterBasedFrameDecoder
+import org.jboss.netty.handler.codec.frame.Delimiters
+import org.jboss.netty.handler.codec.string.StringDecoder
+import org.jboss.netty.handler.codec.string.StringEncoder
+import org.jboss.netty.util.CharsetUtil
+
+object EchoClient {
+ def main(args: Array[String]) {
+   // Construct a client, and connect it to localhost:8080
+   val client: Service[String, String] = ClientBuilder()
+     .codec(StringCodec)
+     .hosts(new InetSocketAddress(8080))
+     .hostConnectionLimit(1)
+     .build()
+
+   // Issue a newline-delimited request, respond to the result
+   // asynchronously:
+   client("Hi Tuan\n") onSuccess { result =>
+     println("Received result asynchronously: " + result)
+   } onFailure { error =>
+     error.printStackTrace()
+   } ensure {
+     // All done! Close TCP connection(s):
+     client.release()
+   }
+ }
+}
+
+object EchoServer {
+ def main(args: Array[String]) {
+   /**
+    * A very simple service that simply echos its request back
+    * as a response. Note that it returns a Future, since everything
+    * in Finagle is asynchronous.
+    */
+   val service: Service[String, String] = new Service[String, String] {
+     def apply(request: String) = Future.value(request)
+   }
+
+   // Bind the service to port 8080
+   val server: Server = ServerBuilder()
+     .codec(StringCodec)
+     .bindTo(new InetSocketAddress(8080))
+     .name("echoserver")
+     .build(service)
+ }
+}
+
+/**
+* A really simple demonstration of a custom Codec. This Codec is a newline (\n)
+* delimited line-based protocol. Here we re-use existing encoders/decoders as
+* provided by Netty.
+*/
+object StringCodec extends StringCodec
+
+class StringCodec extends CodecFactory[String, String] {
+ def server = Function.const {
+   new Codec[String, String] {
+     def pipelineFactory = new ChannelPipelineFactory {
+       def getPipeline = {
+         val pipeline = Channels.pipeline()
+         pipeline.addLast("line",
+           new DelimiterBasedFrameDecoder(100, Delimiters.lineDelimiter: _*))
+         pipeline.addLast("stringDecoder", new StringDecoder(CharsetUtil.UTF_8))
+         pipeline.addLast("stringEncoder", new StringEncoder(CharsetUtil.UTF_8))
+         pipeline
+       }
+     }
+   }
+ }
+
+ def client = Function.const {
+   new Codec[String, String] {
+     def pipelineFactory = new ChannelPipelineFactory {
+       def getPipeline = {
+         val pipeline = Channels.pipeline()
+         pipeline.addLast("stringEncode", new StringEncoder(CharsetUtil.UTF_8))
+         pipeline.addLast("stringDecode", new StringDecoder(CharsetUtil.UTF_8))
+         pipeline
+       }
+     }
+   }
+ }
+}
+
+You can use ./sbt run into command line to run this example.
+Then you will need to have two separate consoles open, one to run the EchoServer from the command line, and a second one to run the EchoClient from the command line.
+Of course, with Eclipse set up with Scala support, you could’ve ran both classes from within Eclipse also.

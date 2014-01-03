@@ -1,0 +1,13 @@
+Require:
+	- Java JDK6 or JDK7.
+	- Scala 2.9.1 or lastest.
+	- MySQL server (for server side)
+
+- Install Java JDK
+	$ sudo apt-get install openjdk-6-jdk openjdk-6-jre
+
+- Install scala 2.9.1 (use for Ubuntu 12.04 or you can see at http://www.scala-lang.org/downloads)
+	$ sudo apt-get install scala
+
+- Install MySQL server
+	You can check out http://www.howtoforge.com/installing-apache2-with-php5-and-mysql-support-on-ubuntu-9.10-lamp
