@@ -1,4 +1,4 @@
-PROJECT GOAL:
+PROJECT GOAL
 -------------
 The goal of this project is to offer a foundation for the issuer service (but not the functional service itself). The issuer service expose a REST API. For the scope of this project it consists of two simple interfaces for demonstration purposes only:
 - A GET interface to allow clients to retrieve coins in JSON format
@@ -6,14 +6,14 @@ The goal of this project is to offer a foundation for the issuer service (but no
 
 Optional: Coins are stored in a SQL database (via squeryl library)
 
-Further Requirements:
+Further Requirements
 ---------------------
 - Coins have the following structure: case class Coin(type: String, value: Int)
 - The deliverable should contain a documentation which describes how the system is deployed to allow future updates of individual software components. For instance in the future a newer Finagle server version may be used and the documentation should describe step by step how to integrate it with the other libraries and the actual source code.
 - Source code should be documented as well.
 - Test cases should be performed and documented. Optional: ScalaTest may be used for testing.
 
-To be used technologies:
+Used technologies
 ------------------------
 - Scala programming language
 - Twitter's Finagle server
@@ -25,7 +25,7 @@ The following links might be useful to understand Finagle's REST capabilities:
 https://github.com/robi42/heroku-finagle-rogue/blob/master/src/main/scala/server.scala
 https://github.com/twitter/finagle/blob/master/finagle-http/src/main/scala/com/twitter/finagle/http/path/Path.scala
 
-BACKGROUND:
+BACKGROUND
 -----------
 This information is optional background information about the project but doesn't describe the scope or functionality of the current project goal!
 
@@ -42,6 +42,7 @@ exchange but on the user interface level these steps are simply the coin verific
 
 
 Installation
+------------------------
 
 Requirements:
 	- Java JDK6 or JDK7.
@@ -60,6 +61,7 @@ Requirements:
 
 
 DEMO Setup Client side
+------------------------
 
 Use CURL as a client.
 To use run client side demo you have to see server side before.
